@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pesapal Test Harness
 
-## Getting Started
+This project re-implements the PHP sample that lives in `../PesaPal` using Next.js App Router. It exposes the same payment flow but keeps all secrets on the server so you can exercise the Pesapal sandbox (or live) APIs directly from the browser.
 
-First, run the development server:
+## Requirements
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Create a `.env.local` file with your Pesapal credentials:
+
+```env
+PESAPAL_ENVIRONMENT=sandbox # or live
+PESAPAL_CONSUMER_KEY=your-key-here
+PESAPAL_CONSUMER_SECRET=your-secret-here
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The helper UI uses `http://localhost:3000/pesapal/response` as the callback URL and `http://localhost:3000/api/pesapal/ipn` for IPNs by default. Update the form fields if you would like to use publicly accessible tunnels such as ngrok when testing the hosted checkout.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Available Workflows
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The dashboard at `/` mirrors the individual PHP scripts:
 
-## Learn More
+- **Request Access Token** → `acesstoken.php`
+- **Register IPN** / **List IPNs** → `RegisterIPN.php` and `RegisteredIPNs.php`
+- **Submit Order Request** → `SubmitOrderRequest.php`
+- **Transaction Status** → `response-page.php`
+- **Cancel Order** → New helper for the Transactions/CancelOrder endpoint
+- **IPN Callback Log** → `pin.php`
+- **Subscriptions / Recurring Payments** → extends `SubmitOrderRequest.php` with `account_number` and optional `subscription_details`.
 
-To learn more about Next.js, take a look at the following resources:
+Every action calls a dedicated API route under `app/api/pesapal/*`, which keeps your consumer key/secret private. `app/pesapal/response/page.tsx` is the Next.js version of the PHP response page that Pesapal redirects back to after checkout.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Running Locally
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+pnpm install
+pnpm dev
+```
 
-## Deploy on Vercel
+Open [http://localhost:3000](http://localhost:3000) to access the toolkit.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Register an IPN URL to capture the `notification_id`. This populates the order form automatically.
+2. Fill out the billing details and submit an order. Pesapal will return a redirect URL and tracking ID.
+3. Use the `OrderTrackingId` to poll the transaction status or visit `/pesapal/response?OrderTrackingId=...`.
+4. When Pesapal posts to your IPN URL the payload is appended to `data/pesapal-ipn-log.json`, which the UI can inspect.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Enabling Subscription-Based Payments
+
+Pesapal requires an `account_number` to identify the customer for recurring billing. In the order form you can:
+
+- Populate *Account Number / Invoice* so the `account_number` field is sent alongside the order.
+- Toggle **Enable subscription** to expose date pickers and a frequency selector. We convert the selected dates to the `dd-MM-yyyy` format Pesapal expects and pass them under `subscription_details`.
+- Optionally, leave the toggle off so the buyer configures their subscription inside the Pesapal iframe after checkout.
+
+Once Pesapal executes the scheduled payment it triggers an IPN to the same endpoint with `OrderNotificationType=RECURRING`. Fetch the transaction status to read the `subscription_transaction_info` object and reconcile it using your `account_number` / merchant reference.
+
+### Cancelling Pending/Failed Orders
+
+Sometimes a shopper never completes the hosted checkout and you want to revoke the order. Enter the `orderTrackingId` under the **Check Transaction Status / Cancel Order** card and hit **Cancel Order**. The app calls `/api/pesapal/cancel`, which proxies Pesapal’s `Transactions/CancelOrder` endpoint. The API only succeeds for pending or failed transactions and Pesapal only lets you cancel once per order.
+
+Feel free to adapt the UI or the API routes to fit your project’s data models once you have verified the end-to-end payment flow.
