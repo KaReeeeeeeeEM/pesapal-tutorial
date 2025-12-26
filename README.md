@@ -16,16 +16,6 @@ The helper UI uses `http://localhost:3000/pesapal/response` as the callback URL 
 
 ## Available Workflows
 
-The dashboard at `/` mirrors the individual PHP scripts:
-
-- **Request Access Token** → `acesstoken.php`
-- **Register IPN** / **List IPNs** → `RegisterIPN.php` and `RegisteredIPNs.php`
-- **Submit Order Request** → `SubmitOrderRequest.php`
-- **Transaction Status** → `response-page.php`
-- **Cancel Order** → New helper for the Transactions/CancelOrder endpoint
-- **IPN Callback Log** → `pin.php`
-- **Subscriptions / Recurring Payments** → extends `SubmitOrderRequest.php` with `account_number` and optional `subscription_details`.
-
 Every action calls a dedicated API route under `app/api/pesapal/*`, which keeps your consumer key/secret private. `app/pesapal/response/page.tsx` is the Next.js version of the PHP response page that Pesapal redirects back to after checkout.
 
 ## Running Locally
