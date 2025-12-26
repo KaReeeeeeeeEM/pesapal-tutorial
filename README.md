@@ -1,6 +1,6 @@
 # Pesapal Test Harness
 
-This project re-implements the PHP sample that lives in `../PesaPal` using Next.js App Router. It exposes the same payment flow but keeps all secrets on the server so you can exercise the Pesapal sandbox (or live) APIs directly from the browser.
+This project implements the PesaPal API Flow using Next.js App Router. It exposes the payment flow but keeps all secrets on the server so you can exercise the Pesapal sandbox (or live) APIs directly from the browser.
 
 ## Requirements
 
